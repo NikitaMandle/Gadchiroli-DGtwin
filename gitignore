@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.venv/
+env/
+
+# Build folders
+dist/
+build/
+
+# Cache
+__pycache__/
+*.pyc
+.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Large files
+*.zip
+*.rar
+*.7z
+*.mp4
+*.mov
+*.avi
+
+# Blender / 3D
+*.blend
+
+# Models
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# Database
+*.db

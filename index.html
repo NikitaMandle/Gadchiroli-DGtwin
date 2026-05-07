@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="worker-src blob: 'self' https://cesium.com; child-src blob: 'self' https://cesium.com;"
+    />
+    <title>Verity.City - Professional Mapping Platform</title>
+
+    <!-- Cesium -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+    
+    <!-- Three.js and loaders -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/MTLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/exporters/GLTFExporter.js"></script>
+    
+    <!-- Utilities -->
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- GeoTIFF library -->
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>
+
+    <!-- proj4 library for coordinate conversion -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      :root {
+        --primary-cyan: #00D9FF;
+        --primary-blue: #0A1628;
+        --dark-bg: #050A14;
+        --card-bg: rgba(10, 22, 40, 0.85);
+        --accent-green: #00FF94;
+        --text-primary: #E8F0F7;
+        --text-secondary: #8B9DB5;
+        --border-glow: rgba(0, 217, 255, 0.3);
+        --sidebar-width: 420px;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--dark-bg);
+        color: var(--text-primary);
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      /* Header */
+      #header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 70px;
+        background: rgba(5, 10, 20, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        padding: 0 30px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 24px;
+        color: var(--primary-cyan);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .logo-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+      }
+
+      .header-nav {
+        margin-left: auto;
+        display: flex;
+        gap: 40px;
+        align-items: center;
+      }
+
+      .nav-link {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+
+      .nav-link:hover {
+        color: var(--primary-cyan);
+      }
+
+      .nav-link::after {
+        content: '';
+        position: absolute;
+        bottom: -5px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--primary-cyan);
+        transition: width 0.3s ease;
+      }
+
+      .nav-link:hover::after {
+        width: 100%;
+      }
+
+      .header-btn {
+        padding: 10px 24px;
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        color: var(--dark-bg);
+        border: none;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
+      }
+
+      .header-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 217, 255, 0.5);
+      }
+
+      /* Sidebar Toggle Button */
+      #sidebar-toggle {
+        position: fixed;
+        top: 90px;
+        left: 20px;
+        width: 50px;
+        height: 50px;
+        background: var(--card-bg);
+        border: 2px solid var(--border-glow);
+        border-radius: 10px;
+        cursor: pointer;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      #sidebar-toggle:hover {
+        background: rgba(0, 217, 255, 0.1);
+        border-color: var(--primary-cyan);
+        box-shadow: 0 0 30px rgba(0, 217, 255, 0.4);
+      }
+
+      #sidebar-toggle .toggle-icon {
+        width: 24px;
+        height: 18px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      #sidebar-toggle .toggle-icon span {
+        width: 100%;
+        height: 2px;
+        background: var(--primary-cyan);
+        border-radius: 2px;
+        transition: all 0.3s ease;
+      }
+
+      #sidebar-toggle.active .toggle-icon span:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+      }
+
+      #sidebar-toggle.active .toggle-icon span:nth-child(2) {
+        opacity: 0;
+      }
+
+      #sidebar-toggle.active .toggle-icon span:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+      }
+
+      /* Sidebar */
+      #sidebar {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        width: var(--sidebar-width);
+        height: calc(100vh - 70px);
+        background: rgba(5, 10, 20, 0.95);
+        backdrop-filter: blur(20px);
+        border-right: 1px solid var(--border-glow);
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 9998;
+        padding: 30px 25px;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+      }
+
+      #sidebar.hidden {
+        transform: translateX(-100%);
+      }
+
+      #sidebar::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      #sidebar::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      #sidebar::-webkit-scrollbar-thumb {
+        background: var(--primary-cyan);
+        border-radius: 4px;
+      }
+
+      #sidebar h2 {
+        font-family: 'Syne', sans-serif;
+        font-size: 22px;
+        color: var(--primary-cyan);
+        margin-bottom: 25px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 700;
+      }
+
+      #sidebar h4 {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        font-weight: 500;
+        line-height: 1.6;
+      }
+
+      #sidebar h5 {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin: 8px 0;
+        padding-left: 15px;
+        border-left: 2px solid var(--primary-cyan);
+      }
+
+      /* Input Groups */
+      .input-group {
+        background: var(--card-bg);
+        border: 1px solid var(--border-glow);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+      }
+
+      .input-group:hover {
+        border-color: var(--primary-cyan);
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
+      }
+
+      .input-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 10px;
+        letter-spacing: 0.5px;
+      }
+
+      .input-group input[type="text"],
+      .input-group input[type="number"] {
+        width: 100%;
+        padding: 12px 15px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+      }
+
+      .input-group input:focus {
+        outline: none;
+        border-color: var(--primary-cyan);
+        box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+      }
+
+      /* Model Selector */
+      .model-selector {
+        background: rgba(0, 217, 255, 0.05);
+        padding: 18px;
+        border-radius: 10px;
+        margin: 15px 0;
+        border: 1px solid rgba(0, 217, 255, 0.2);
+      }
+      
+      .model-selector h4 {
+        color: var(--primary-cyan);
+        margin: 0 0 15px 0;
+        font-size: 14px;
+        font-family: 'Syne', sans-serif;
+      }
+      
+      .model-item {
+        display: flex;
+        align-items: center;
+        margin: 10px 0;
+        gap: 12px;
+      }
+      
+      .model-item input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: var(--primary-cyan);
+      }
+      
+      .model-select-btn {
+        flex: 1;
+        padding: 12px 18px;
+        background: rgba(10, 22, 40, 0.8);
+        color: var(--text-primary);
+        border: 2px solid rgba(0, 217, 255, 0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.3s ease;
+      }
+      
+      .model-select-btn:hover:not(:disabled) {
+        background: rgba(0, 217, 255, 0.1);
+        border-color: var(--primary-cyan);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
+      }
+      
+      .model-select-btn.active {
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        color: var(--dark-bg);
+        border-color: var(--primary-cyan);
+        box-shadow: 0 4px 20px rgba(0, 217, 255, 0.5);
+      }
+      
+      .model-select-btn:disabled {
+        background: rgba(50, 50, 50, 0.5);
+        cursor: not-allowed;
+        color: #666;
+        border-color: #333;
+      }
+
+      /* Controls Styling */
+      .tif-controls, .kmz-controls, .tree-controls {
+        background: rgba(0, 255, 148, 0.05);
+        border-left: 3px solid var(--accent-green);
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 8px;
+      }
+
+      .tif-info {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 10px;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        line-height: 1.6;
+      }
+
+      /* File Upload */
+      #upload-area {
+        background: var(--card-bg);
+        border: 2px dashed var(--border-glow);
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+      }
+
+      #upload-area:hover {
+        border-color: var(--primary-cyan);
+        background: rgba(0, 217, 255, 0.05);
+      }
+
+      .custom-file-upload {
+        display: block;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, rgba(0, 217, 255, 0.2), rgba(0, 255, 148, 0.2));
+        border: 1px solid var(--primary-cyan);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-weight: 600;
+        text-align: center;
+        cursor: pointer;
+        margin: 12px 0;
+        transition: all 0.3s ease;
+        font-size: 13px;
+      }
+
+      .custom-file-upload:hover {
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        color: var(--dark-bg);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      /* Control Buttons */
+      .control-button {
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, rgba(0, 217, 255, 0.2), rgba(0, 255, 148, 0.2));
+        color: var(--text-primary);
+        border: 1px solid var(--primary-cyan);
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        margin: 8px 0;
+        transition: all 0.3s ease;
+      }
+
+      .control-button:hover {
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        color: var(--dark-bg);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+      }
+
+      /* Layer Controls */
+      .layer-control {
+        background: rgba(10, 22, 40, 0.6);
+        border: 1px solid rgba(0, 217, 255, 0.2);
+        border-radius: 10px;
+        padding: 18px;
+      }
+
+      .layer-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        margin: 8px 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .layer-toggle:hover {
+        background: rgba(0, 217, 255, 0.1);
+      }
+
+      .layer-toggle input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: var(--primary-cyan);
+      }
+
+      .layer-toggle label {
+        flex: 1;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        margin: 0;
+      }
+
+      .layer-status {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(139, 157, 181, 0.2);
+        color: var(--text-secondary);
+      }
+
+      .layer-status.status-loaded {
+        background: rgba(0, 255, 148, 0.2);
+        color: var(--accent-green);
+      }
+
+      .layer-status.status-loading {
+        background: rgba(0, 217, 255, 0.2);
+        color: var(--primary-cyan);
+      }
+
+      .layer-status.status-error {
+        background: rgba(255, 68, 68, 0.2);
+        color: #ff4444;
+      }
+
+      /* Opacity Slider */
+      .opacity-slider {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.3);
+        outline: none;
+        margin: 10px 0;
+        appearance: none;
+      }
+
+      .opacity-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+      }
+
+      .opacity-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-cyan), var(--accent-green));
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        border: none;
+      }
+
+      .slider-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 5px;
+      }
+
+      /* Search */
+      #search-container {
+        position: relative;
+      }
+
+      #searchInput {
+        width: 100%;
+        padding: 14px 15px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-glow);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      #search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--card-bg);
+        border: 1px solid var(--primary-cyan);
+        border-radius: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+      }
+
+      /* File Status */
+      #file-status {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border-left: 3px solid var(--primary-cyan);
+      }
+
+      #file-status strong {
+        color: var(--primary-cyan);
+        font-family: 'Syne', sans-serif;
+        font-size: 12px;
+      }
+
+      #status-text {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin-top: 5px;
+        display: block;
+      }
+
+      /* Tree Stats */
+      #treeStats {
+        margin-top: 15px;
+        padding: 15px;
+        background: rgba(0, 255, 148, 0.1);
+        border-radius: 8px;
+        border: 1px solid rgba(0, 255, 148, 0.3);
+      }
+
+      #treeStats strong {
+        color: var(--accent-green);
+        font-family: 'Syne', sans-serif;
+      }
+
+      /* Cesium Container */
+      #cesiumContainer {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      #cesiumContainer.sidebar-open {
+        left: var(--sidebar-width);
+      }
+
+      /* Loading Overlay */
+      #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(5, 10, 20, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 25px;
+      }
+
+      .spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(0, 217, 255, 0.2);
+        border-top: 4px solid var(--primary-cyan);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      #loading-text {
+        font-family: 'Syne', sans-serif;
+        font-size: 18px;
+        color: var(--primary-cyan);
+        letter-spacing: 2px;
+      }
+
+      .progress-bar {
+        width: 300px;
+        height: 6px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 3px;
+        overflow: hidden;
+        border: 1px solid var(--primary-cyan);
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-cyan), var(--accent-green));
+        width: 0%;
+        transition: width 0.3s ease;
+        box-shadow: 0 0 10px var(--primary-cyan);
+      }
+
+      #memory-warning {
+        font-size: 12px;
+        color: var(--text-secondary);
+        max-width: 400px;
+        text-align: center;
+        line-height: 1.6;
+      }
+
+      /* Debug Section */
+      .debug-section {
+        background: rgba(255, 68, 68, 0.1);
+        border: 1px solid #ff4444;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        :root {
+          --sidebar-width: 100%;
+        }
+
+        #header {
+          padding: 0 15px;
+        }
+
+        .header-nav {
+          gap: 20px;
+        }
+
+        .nav-link {
+          display: none;
+        }
+
+        #sidebar {
+          width: 100%;
+        }
+
+        #sidebar-toggle {
+          left: 15px;
+        }
+      }
+
+      /* Animations */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .input-group, .layer-control, #upload-area {
+        animation: fadeIn 0.5s ease backwards;
+      }
+
+      .input-group:nth-child(1) { animation-delay: 0.1s; }
+      .input-group:nth-child(2) { animation-delay: 0.2s; }
+      .input-group:nth-child(3) { animation-delay: 0.3s; }
+      .input-group:nth-child(4) { animation-delay: 0.4s; }
+      .input-group:nth-child(5) { animation-delay: 0.5s; }
+    </style>
+  </head>
+  <body>
+    
+    <!-- Header -->
+    <div id="header">
+      <div class="logo">
+        <div class="logo-icon">🗺️</div>
+        <span>VERITY<span style="color: var(--accent-green)">.CITY</span></span>
+      </div>
+      <nav class="header-nav">
+        <a href="#" class="nav-link">Features</a>
+        <a href="#" class="nav-link">Solutions</a>
+        <a href="#" class="nav-link">Pricing</a>
+        <a href="#" class="nav-link">About</a>
+        <button class="header-btn">Get Started</button>
+      </nav>
+    </div>
+
+    <!-- Sidebar Toggle Button -->
+    <div id="sidebar-toggle" onclick="toggleSidebar()">
+      <div class="toggle-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" style="display: none">
+      <div class="spinner"></div>
+      <p id="loading-text">Processing model...</p>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div id="memory-warning">
+        <strong>Warning:</strong> Loading large models may cause performance
+        issues on low-memory devices.
+      </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h2>🗺️ Control Panel</h2>
+
+      <!-- Search Feature -->
+      <div class="input-group" id="search-container">
+        <label for="searchInput">🔍 Search Property</label>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="e.g., H101, Owner Name, Phone..."
+          oninput="debounce(searchProperties, 300)()"
+          onfocus="searchProperties()"
+          autocomplete="off"
+        />
+        <button
+          class="control-button"
+          onclick="searchProperties()"
+        >
+          Search
+        </button>
+        <div id="search-results"></div>
+      </div>
+
+      <h4>🎯 Multiple GLB Models + 📍 4 TIF Files + 📦 User KMZ + 🌳 Tree Database</h4>
+
+      <!-- Multi-Model Controls -->
+        <div id="glb-selector-container" class="input-group"></div>
+
+      <!-- Multi-TIF Selector -->
+      <div id="tif-selector-container" class="input-group">
+        <!-- Populated by createTifSelector() in 8_tif_manager.js -->
+      </div>
+
+      <!-- File Upload Area -->
+      <div id="upload-area">
+        <label for="fileInput" class="custom-file-upload"
+          >📍 Location File</label
+        >
+        <input type="file" id="fileInput" accept=".txt" />
+
+        <label for="modelUpload" class="custom-file-upload"
+          >🎯 Choose Model Files (.glb/.obj)</label
+        >
+        <input
+          type="file"
+          id="modelUpload"
+          multiple
+          accept=".obj,.mtl,.glb,.gltf,.dae,.jpg,.jpeg,.png,.bmp,.tga, .laz"
+        />
+
+        <label for="tifUpload" class="custom-file-upload"
+          >🌍 Choose TIF Files (Max 4) - Multi-Select Allowed</label
+        >
+        <input
+          type="file"
+          id="tifUpload"
+          multiple
+          accept=".tif,.tiff"
+        />
+
+        <div class="tif-info">
+          ℹ️ You can select up to 4 TIF files at once!<br/>
+          Each TIF will get its own layer with independent controls.
+        </div>
+
+        <!-- User KMZ Upload -->
+        <label for="kmzUpload" class="custom-file-upload"
+          >📦 Upload Your KMZ File (Auto Fly-To Location)</label
+        >
+        <input
+          type="file"
+          id="kmzUpload"
+          accept=".kmz"
+        />
+
+        <div class="tif-info" style="border-left: 3px solid #8e44ad;">
+          📦 Upload any KMZ file and automatically fly to its location!<br/>
+          Perfect for viewing your custom data layers.
+        </div>
+
+        <div id="file-status">
+          <strong>File Status:</strong><br />
+          <span id="status-text">No files uploaded</span>
+        </div>
+
+        <div id="debug-info" class="debug-section" style="display: none">
+          <strong>Debug Info:</strong><br />
+          <span id="debug-text"></span>
+        </div>
+
+        <h4>📋 Instructions:</h4>
+        <h5>1. Load multiple GLB/OBJ models</h5>
+        <h5>2. Load up to 4 TIF files simultaneously</h5>
+        <h5>3. Upload your own KMZ files</h5>
+        <h5>4. View 40K+ trees on map with filters</h5>
+        <h5>5. Click anywhere to find nearby trees</h5>
+      </div>
+
+      <!-- Tree Layer Controls -->
+      <div class="input-group layer-control tree-controls">
+        <label>🌳 Tree Layer Controls</label>
+        
+        <div style="margin-bottom: 10px">
+          <span class="layer-status" id="treeLayerStatus">Not Loaded</span>
+        </div>
+
+        <div class="layer-toggle" onclick="toggleTreeLayer()">
+          <input
+            type="checkbox"
+            id="treeLayerToggle"
+            onclick="event.stopPropagation(); toggleTreeLayer()"
+          />
+          <label for="treeLayerToggle">Show All Trees on Map</label>
+        </div>
+
+        <!-- Tree Filter Options -->
+        <!-- Hector Filter -->
+<div style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+  <label style="font-size: 12px; color: #95a5a6;">Filter by Hector:</label>
+
+  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+    <button class="control-button" onclick="loadHector('ALL')">🌍 All</button>
+    <button class="control-button" onclick="loadHector('40H')">🌳 40H</button>
+    <button class="control-button" onclick="loadHector('20H1')">🌿 20H Part 1</button>
+    <button class="control-button" onclick="loadHector('20H2')">🍀 20H Part 2</button>
+  </div>
+</div>
+
+
+        <!-- Tree Action Buttons -->
+        <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px;">
+          <button 
+            class="control-button" 
+            onclick="loadAllTrees()"
+            style="flex: 1; min-width: 120px;"
+          >
+            📍 Load All Trees
+          </button>
+          
+          <button 
+            class="control-button" 
+            onclick="flyToTreeLocation()"
+            style="flex: 1; min-width: 120px;"
+          >
+            🌍 View All Trees
+          </button>
+          
+          <button 
+            class="control-button" 
+            onclick="removeAllTrees()"
+            style="flex: 1; min-width: 120px;"
+          >
+            🗑️ Remove Trees
+          </button>
+        </div>
+
+        <!-- Tree Statistics -->
+        <div id="treeStats" style="display: none;">
+          <div style="font-size: 11px; color: #ecf0f1;">
+            <strong>📊 Tree Statistics:</strong><br>
+            Total Trees: <span id="totalTrees">0</span><br>
+            🌲 Timber: <span id="timberCount">0</span><br>
+            🌳 Fuel: <span id="fuelCount">0</span><br>
+          </div>
+        </div>
+
+        <div class="tif-info" style="margin-top: 10px; border-left: 3px solid #27ae60;">
+          💡 <strong>Tips:</strong><br/>
+          • Click "Load All Trees" to show trees on map<br/>
+          • Use checkboxes to filter by type<br/>
+          • Click any tree marker to see details<br/>
+          • Trees are color-coded: Green=Timber, Brown=Fuel<br/>
+          • Click anywhere on map to find nearby trees
+        </div>
+      </div>
+
+      <!-- User KMZ Layer Controls -->
+      <div class="input-group layer-control kmz-controls">
+        <label>📦 Your KMZ Layer</label>
+        
+        <div class="layer-toggle" onclick="toggleUserKmz()">
+          <input
+            type="checkbox"
+            id="userKmzToggle"
+            onclick="event.stopPropagation(); toggleUserKmz()"
+            checked
+          />
+          <label for="userKmzToggle">Show User KMZ</label>
+          <span class="layer-status" id="userKmzStatus">Not Loaded</span>
+        </div>
+
+        
+        <!-- User KMZ Action Buttons -->
+        <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px;">
+          <button 
+            class="control-button" 
+            onclick="flyToUserKmz()"
+            style="flex: 1; min-width: 120px;"
+          >
+            📍 Fly to My KMZ
+          </button>
+          
+          <button 
+            class="control-button" 
+            onclick="removeUserKmz()"
+            style="flex: 1; min-width: 120px;"
+          >
+            🗑️ Remove My KMZ
+          </button>
+        </div>
+
+        <div class="tif-info" style="margin-top: 10px;">
+          💡 <strong>Tips:</strong><br/>
+          • Upload your KMZ file above<br/>
+          • View automatically flies to KMZ location<br/>
+          • Toggle visibility with checkbox<br/>
+          • Remove when done to load new KMZ
+        </div>
+      </div>
+
+      <!-- TIF Layer Controls -->
+      <div class="input-group layer-control tif-controls">
+        <label>🗺️ TIF Layer Controls</label>
+        
+        <div style="margin-bottom: 10px">
+          <span class="layer-status status-loaded" id="tifStatus">Not Loaded</span>
+        </div>
+
+        <!-- TIF Opacity Control -->
+        <div style="margin-bottom: 10px">
+          <label style="font-size: 11px; color: #95a5a6">Selected TIF Opacity</label>
+          <input
+            type="range"
+            id="tifOpacity"
+            min="0"
+            max="100"
+            value="100"
+            class="opacity-slider"
+            oninput="updateTifOpacity(this.value)"
+          />
+          <div class="slider-label">
+            <span>Transparent</span>
+            <span id="tifOpacityValue">100%</span>
+            <span>Opaque</span>
+          </div>
+        </div>
+
+        <!-- TIF Action Buttons -->
+        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+          <button 
+            class="control-button" 
+            onclick="flyToTifLocation()"
+            style="flex: 1; min-width: 120px;"
+          >
+            📍 Fly to Selected TIF
+          </button>
+          
+          <button 
+            class="control-button" 
+            onclick="flyToAllTifs()"
+            style="flex: 1; min-width: 120px;"
+          >
+            🌍 View All TIFs
+          </button>
+          
+          <button 
+            class="control-button" 
+            onclick="removeAllTifs()"
+            style="flex: 1; min-width: 120px;"
+          >
+            🗑️ Remove All TIFs
+          </button>
+        </div>
+
+        <div class="tif-info" style="margin-top: 10px;">
+          💡 <strong>Tips:</strong><br/>
+          • Click TIF button in list above to select it<br/>
+          • Selected TIF = active for opacity control<br/>
+          • Checkboxes toggle visibility (show/hide)<br/>
+          • Each TIF has a colored pin marker on map
+        </div>
+      </div>
+
+      <!-- KMZ Layers -->
+      <div class="input-group layer-control">
+        <label>🗂️ KMZ Layers</label>
+
+        <div class="layer-toggle" onclick="toggleLayer('roads')">
+          <input
+            type="checkbox"
+            id="roadsToggle"
+            onclick="event.stopPropagation(); toggleLayer('roads')"
+          />
+          <label for="roadsToggle">Load Data</label>
+          <span class="layer-status status-loading" id="roadsStatus">Loading...</span>
+        </div>
+
+        <div class="layer-toggle" onclick="toggleLayer('houses')">
+          <input
+            type="checkbox"
+            id="housesToggle"
+            onclick="event.stopPropagation(); toggleLayer('houses')"
+          />
+          <label for="housesToggle">Show Trees</label>
+          <span class="layer-status status-loading" id="housesStatus">Loading...</span>
+        </div>
+      </div>
+
+      <!-- Position Controls -->
+      <div class="input-group">
+        <label>🌐 Position Controls (Active GLB Model)</label>
+        <label>Longitude:</label>
+        <input type="number" id="longitude" value="79.109438" step="0.000001" onchange="updateModelPosition()" />
+        <label>Latitude:</label>
+        <input type="number" id="latitude" value="21.096409" step="0.000001" onchange="updateModelPosition()" />
+        <label>Height:</label>
+        <input type="number" id="height" value="0" onchange="updateModelPosition()" />
+      </div>
+
+      <!-- Rotation Controls -->
+      <div class="input-group">
+        <label>🔄 Rotation Controls (Active GLB Model)</label>
+        <label>Heading:</label>
+        <input type="number" id="heading" value="21" onchange="updateModelOrientation()" />
+        <label>Pitch:</label>
+        <input type="number" id="pitch" value="92" onchange="updateModelOrientation()" />
+        <label>Roll:</label>
+        <input type="number" id="roll" value="14" onchange="updateModelOrientation()" />
+      </div>
+
+      <!-- Scale Control -->
+      <div class="input-group">
+        <label>📏 Scale Control (Active GLB Model)</label>
+        <input
+          type="number"
+          id="scale"
+          value="1.0"
+          step="0.1"
+          min="0.1"
+          max="100"
+          onchange="updateModelScale()"
+        />
+      </div>
+
+      <!-- GLB Model Opacity -->
+      <div class="input-group">
+        <label>🎨 Active GLB Model Opacity</label>
+        <input
+          type="range"
+          id="modelOpacity"
+          min="0"
+          max="100"
+          value="100"
+          class="opacity-slider"
+          oninput="updateModelOpacity(this.value)"
+        />
+        <div class="slider-label">
+          <span>Transparent</span>
+          <span id="modelOpacityValue">100%</span>
+          <span>Opaque</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="input-group">
+        <button class="control-button" onclick="resetToGroundLevel()">
+          📍 Ground Level
+        </button>
+        <button class="control-button" onclick="centerOnModel()">
+          🎯 Center on Active Model
+        </button>
+        <button class="control-button" onclick="optimizeMemory()">
+          ⚡ Free Memory
+        </button>
+      </div>
+    </div>
+
+    <!-- Cesium Container -->
+    <div id="cesiumContainer" class="sidebar-open"></div>
+
+    <!-- Load Scripts in Order -->
+    
+    <script src="DatabaseFiles/40H.js"></script>
+<script src="DatabaseFiles/20H_part1.js"></script>
+<script src="DatabaseFiles/20H_part2.js"></script>
+
+
+
+    <script src="js/1_config_globals.js"></script>
+    <script src="js/2_ui_helpers.js"></script>
+    <script src="js/3_utils.js"></script>
+    <script src="js/4_model_manager_multi.js"></script>
+    <script src="js/5_layer_manager.js"></script>
+    <script src="js/6_search_feature.js"></script>
+    <script src="js/8_tif_manager.js"></script>
+    <script src="js/tree_data.js"></script>
+    <script src="js/9_tree_manager.js"></script>
+    
+    <script src="js/7_main.js"></script>
+
+    <script>
+      // Sidebar toggle functionality
+      function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('sidebar-toggle');
+        const cesiumContainer = document.getElementById('cesiumContainer');
+        
+        sidebar.classList.toggle('hidden');
+        toggle.classList.toggle('active');
+        
+        if (sidebar.classList.contains('hidden')) {
+          cesiumContainer.classList.remove('sidebar-open');
+        } else {
+          cesiumContainer.classList.add('sidebar-open');
+        }
+        
+        // Trigger Cesium resize to adjust to new container size
+        if (typeof viewer !== 'undefined') {
+          setTimeout(() => {
+            viewer.resize();
+          }, 400);
+        }
+      }
+    </script>
+
+  </body>
+</html>
