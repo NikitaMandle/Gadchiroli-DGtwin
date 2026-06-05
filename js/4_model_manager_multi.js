@@ -801,29 +801,85 @@ function updateLegacyStatus() {
   }
 }
 
+function getActiveUploadedGlb() {
+  if (typeof glbModels === "undefined" || !glbModels.length) return null;
+  if (typeof currentActiveGlb === "number" && glbModels[currentActiveGlb]) {
+    return glbModels[currentActiveGlb];
+  }
+  return glbModels[glbModels.length - 1] || null;
+}
+
+function applyUploadedGlbPosition() {
+  const model = getActiveUploadedGlb();
+  if (!model || !model.entity) return false;
+
+  const longitude = parseFloat(document.getElementById("longitude")?.value);
+  const latitude = parseFloat(document.getElementById("latitude")?.value);
+  const height = parseFloat(document.getElementById("height")?.value);
+
+  const lon = Number.isFinite(longitude) ? longitude : 0;
+  const lat = Number.isFinite(latitude) ? latitude : 0;
+  const h = Number.isFinite(height) ? height : 0;
+
+  const position = Cesium.Cartesian3.fromDegrees(lon, lat, h);
+  const heading = parseFloat(document.getElementById("heading")?.value) || 0;
+  const pitch = parseFloat(document.getElementById("pitch")?.value) || 0;
+  const roll = parseFloat(document.getElementById("roll")?.value) || 0;
+  const hpr = new Cesium.HeadingPitchRoll(
+    Cesium.Math.toRadians(heading),
+    Cesium.Math.toRadians(pitch),
+    Cesium.Math.toRadians(roll)
+  );
+
+  model.entity.position = position;
+  model.entity.orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+  return true;
+}
+
+function applyUploadedGlbScale() {
+  const model = getActiveUploadedGlb();
+  if (!model || !model.entity || !model.entity.model) return false;
+
+  const scale = parseFloat(document.getElementById("scale")?.value) || 1.0;
+  model.entity.model.scale = scale;
+  return true;
+}
+
 function updateModelPosition() {
-  if (currentActiveModel < 0 || !modelInstances[currentActiveModel]) return;
-  const inst = modelInstances[currentActiveModel];
-  inst.params.longitude = parseFloat(document.getElementById("longitude").value) || inst.params.longitude;
-  inst.params.latitude = parseFloat(document.getElementById("latitude").value) || inst.params.latitude;
-  inst.params.height = parseFloat(document.getElementById("height").value) || 0;
-  applyParamsToEntity(inst);
+  if (currentActiveModel >= 0 && modelInstances[currentActiveModel]) {
+    const inst = modelInstances[currentActiveModel];
+    inst.params.longitude = parseFloat(document.getElementById("longitude").value) || inst.params.longitude;
+    inst.params.latitude = parseFloat(document.getElementById("latitude").value) || inst.params.latitude;
+    inst.params.height = parseFloat(document.getElementById("height").value) || 0;
+    applyParamsToEntity(inst);
+    return;
+  }
+
+  applyUploadedGlbPosition();
 }
 
 function updateModelOrientation() {
-  if (currentActiveModel < 0 || !modelInstances[currentActiveModel]) return;
-  const inst = modelInstances[currentActiveModel];
-  inst.params.heading = parseFloat(document.getElementById("heading").value) || 0;
-  inst.params.pitch = parseFloat(document.getElementById("pitch").value) || 0;
-  inst.params.roll = parseFloat(document.getElementById("roll").value) || 0;
-  applyParamsToEntity(inst);
+  if (currentActiveModel >= 0 && modelInstances[currentActiveModel]) {
+    const inst = modelInstances[currentActiveModel];
+    inst.params.heading = parseFloat(document.getElementById("heading").value) || 0;
+    inst.params.pitch = parseFloat(document.getElementById("pitch").value) || 0;
+    inst.params.roll = parseFloat(document.getElementById("roll").value) || 0;
+    applyParamsToEntity(inst);
+    return;
+  }
+
+  applyUploadedGlbPosition();
 }
 
 function updateModelScale() {
-  if (currentActiveModel < 0 || !modelInstances[currentActiveModel]) return;
-  const inst = modelInstances[currentActiveModel];
-  inst.params.scale = parseFloat(document.getElementById("scale").value) || 1.0;
-  if (inst.entity && inst.entity.model) inst.entity.model.scale = inst.params.scale;
+  if (currentActiveModel >= 0 && modelInstances[currentActiveModel]) {
+    const inst = modelInstances[currentActiveModel];
+    inst.params.scale = parseFloat(document.getElementById("scale").value) || 1.0;
+    if (inst.entity && inst.entity.model) inst.entity.model.scale = inst.params.scale;
+    return;
+  }
+
+  applyUploadedGlbScale();
 }
 
 function updateModelOpacity(value) {

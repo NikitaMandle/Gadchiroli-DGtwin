@@ -14,6 +14,18 @@ let uploadedHeading = 0;
 let uploadedPitch = 0;
 let uploadedRoll = 0;
 
+function getNumberInputValue(id, fallback = 0) {
+  const value = parseFloat(document.getElementById(id)?.value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function getCurrentModelOrientation() {
+  return {
+    heading: getNumberInputValue("heading", uploadedHeading),
+    pitch: getNumberInputValue("pitch", uploadedPitch),
+    roll: getNumberInputValue("roll", uploadedRoll),
+  };
+}
 
 function utmToLatLon(easting, northing, zoneNumber, northernHemisphere = true) {
 
@@ -147,9 +159,16 @@ document.getElementById("fileInput").addEventListener("change", function(event) 
     const zoneNumber = parseInt(match[1]);
     const isNorthern = match[2] === "N";
 
-    // Second line: easting northing and height 
+    // Second line: easting northing height heading pitch roll.
+    // If heading/pitch/roll are not provided, keep the UI defaults so GLB files stay flat.
 let easting, northing, height = 0;
-let heading = 0, pitch = 0, roll = 0;
+let orientation = getCurrentModelOrientation();
+let heading = orientation.heading;
+let pitch = orientation.pitch;
+let roll = orientation.roll;
+let hasHeadingFromFile = false;
+let hasPitchFromFile = false;
+let hasRollFromFile = false;
 
 for (let i = 1; i < lines.length; i++) {
   const parts = lines[i].trim().split(/\s+/);
@@ -161,14 +180,20 @@ for (let i = 1; i < lines.length; i++) {
     if (parts.length >= 3 && !isNaN(parts[2]))
       height = parseFloat(parts[2]);
 
-    if (parts.length >= 4 && !isNaN(parts[3]))
+    if (parts.length >= 4 && !isNaN(parts[3])) {
       heading = parseFloat(parts[3]);
+      hasHeadingFromFile = true;
+    }
 
-    if (parts.length >= 5 && !isNaN(parts[4]))
+    if (parts.length >= 5 && !isNaN(parts[4])) {
       pitch = parseFloat(parts[4]);
+      hasPitchFromFile = true;
+    }
 
-    if (parts.length >= 6 && !isNaN(parts[5]))
+    if (parts.length >= 6 && !isNaN(parts[5])) {
       roll = parseFloat(parts[5]);
+      hasRollFromFile = true;
+    }
 
     break;
   }
@@ -191,11 +216,29 @@ for (let i = 1; i < lines.length; i++) {
     console.log("Converted:", uploadedLatitude, uploadedLongitude);
 
     uploadedHeightOffset = height;
+
+    const txtHasZeroOrientation =
+      hasHeadingFromFile &&
+      hasPitchFromFile &&
+      hasRollFromFile &&
+      heading === 0 &&
+      pitch === 0 &&
+      roll === 0;
+
+    if (txtHasZeroOrientation) {
+      orientation = getCurrentModelOrientation();
+      heading = orientation.heading;
+      pitch = orientation.pitch;
+      roll = orientation.roll;
+    }
    
 uploadedHeading = heading;
 uploadedPitch = pitch;
 uploadedRoll = roll;
 document.getElementById("height").value = height;
+document.getElementById("heading").value = uploadedHeading;
+document.getElementById("pitch").value = uploadedPitch;
+document.getElementById("roll").value = uploadedRoll;
 
   };
 
@@ -231,6 +274,10 @@ reader.onload = function (e) {
   Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [cartographic])
     .then(function (updatedPositions) {
       const terrainHeight = updatedPositions[0].height;
+      const orientationValues = getCurrentModelOrientation();
+      uploadedHeading = orientationValues.heading;
+      uploadedPitch = orientationValues.pitch;
+      uploadedRoll = orientationValues.roll;
 
 
       const finalHeight = terrainHeight + uploadedHeightOffset;
