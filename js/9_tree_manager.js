@@ -10,9 +10,20 @@ let treeLayerVisible = false;
 
 
 // ---------------- DATASET SWITCHER ----------------
-function loadStaticTrees() {
-  activeTreeDatabase = treeDatabase;
-  loadTreeDataset(treeDatabase, "Static Dataset");
+function loadHector(type) {
+
+  if (type === "ALL") {
+    activeTreeDatabase = {
+      ...treeDatabase_40H,
+      ...treeDatabase_20H1,
+      ...treeDatabase_20H2
+    };
+  } 
+  else if (type === "40H") activeTreeDatabase = treeDatabase_40H;
+  else if (type === "20H1") activeTreeDatabase = treeDatabase_20H1;
+  else if (type === "20H2") activeTreeDatabase = treeDatabase_20H2;
+
+  loadTreeDataset(activeTreeDatabase, type);
 }
 
 
@@ -103,15 +114,13 @@ function toggleTreeLayer() {
 
   const checkbox = document.getElementById("treeLayerToggle");
 
-  if (!treePointCollection && checkbox.checked) {
-    loadStaticTrees();
+  if (!treePointCollection) {
+    if (checkbox.checked) loadHector("ALL");
     return;
   }
 
-  if (treePointCollection) {
-    treePointCollection.show = checkbox.checked;
-    treeLayerVisible = checkbox.checked;
-  }
+  treePointCollection.show = checkbox.checked;
+  treeLayerVisible = checkbox.checked;
 }
 
 
